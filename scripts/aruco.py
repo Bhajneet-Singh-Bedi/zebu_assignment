@@ -27,8 +27,6 @@ args = parser.parse_args()
 vehicle = connect(args.connect, baud=921600)
 
 
-
-
 #921600 is the baudrate that you have set in the mission plannar or qgc
 
 # Function to arm and then takeoff to a user specified altitude
@@ -82,46 +80,8 @@ def spiral(velocity_x, velocity_y, velocity_z):
     time.sleep(0.5)
 
 
-# async def arucoLanding():
-#     drone=System()
-#     await drone.connect(system_address="127.0.0.1:14550")
-#     print("Setting mode to 'PHOTO'")
-#     try:
-#         await drone.camera.set_mode(Mode.PHOTO)
-#     except CameraError as error:
-#         print(f"Setting mode failed with error code: {error._result.result}")
 
-#     print("Taking a photo")
-#     try:
-#         await drone.camera.take_photo()
-#     except CameraError as error:
-#         print(f"Couldn't take photo: {error._result.result}")
-
-
-# def camera_callback(self, attr_name, value):
-    # print('lala')
-    # if attr_name == 'camera':
-    #     # Process the received image data
-    #     image_data = value
-    #     print('Working fine')
-    #     # Perform desired operations with the image data
-
-
-
-# def arucoLanding():
-#   cap = cv2.VideoCapture('gazebo://camera_controller')
-#   if not cap.isOpened():
-#     print("Failed to open camera")
-#     vehicle.mode = VehicleMode("RTL")
-#     vehicle.close()
-#     exit()
-#   while True:
-#     # Capture frame-by-frame
-#     ret, frame = cap.read()
-#     print(ret, frame)
-
-# Initialize the takeoff sequence to 15m
-# arm_and_takeoff(2)
+arm_and_takeoff(2)
 print("Take off complete")
 
 
@@ -132,7 +92,7 @@ print("Doing Spiral now")
 v_t = 1  # Tangential velocity (desired velocity of the drone along the spiral trajectory)
 n = 0.1  # Frequency or number of revolutions of the spiral
 
-"""
+
 # Start the spiral trajectory
 start_time = time.time()
 while True:
@@ -149,62 +109,45 @@ while True:
     # Break the loop after a certain duration (e.g., 30 seconds)
     if current_time >= 30:
         break
-"""
-# Detect Aruco Marker for landing.
-#asyncio.run(arucoLanding())
-
-# Function to process camera frames from MAVSDK
-def process_camera_frames(camera_frame):
-    # Perform desired operations with the camera frame
-    frame = camera_frame.frame
-    # Convert frame to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
-    # Perform ArUco marker detection
-    aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
-    parameters = aruco.DetectorParameters_create()
-    corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-    frame_markers = aruco.drawDetectedMarkers(frame.copy(), corners, ids)
-    
-    # Check if the ArUco marker with ID 53 is detected
-    if ids is not None and 53 in ids:
-        print("Landing triggered!")
-        vehicle.mode = VehicleMode("LAND")
 
 
-# Connect to the MAVSDK system using MAVSDK
-mavsdk_system = System()
-
-async def connect_to_mavsdk():
-    # Connect to the MAVSDK system
-    await mavsdk_system.connect(system_address="udp://localhost:14540")
+# Get the world object
+image = vehicle.camera.capture_image()
+print(image)
 
 
-# Subscribe to the camera feed
-camera = mavsdk_system.camera.subscribe_camera_image()
+# master = mavutil.mavlink_connection('tcp:127.0.0.1:5760')
 
+# # Enable the camera module
+# master.mav.command_long_send(
+#     master.target_system, master.target_component,
+#     mavutil.mavlink.MAV_CMD_PREFLIGHT_STORAGE,
+#     0, 1, 0, 0, 0, 0, 0, 0
+# )
+# print('started screaming')
+# # Start the video streaming
+# master.mav.command_long_send(
+#     master.target_system, master.target_component,
+#     mavutil.mavlink.MAV_CMD_VIDEO_START_CAPTURE,
+#     0, 0, 0, 0, 0, 0, 0, 0
+# )
 
-async def main():
-    # Start the connection to the MAVSDK system
-    await connect_to_mavsdk()
+# print('reveiving and displaying')
 
-    while True:
-        # Handle any incoming messages from DroneKit
-        vehicle.wait_heartbeat()
+# # Receive and display the camera feed
+# while True:
+#     msg = master.recv_match(type='CAMERA_FEEDBACK', blocking=True, timeout=1)
+#     if msg:
+#         # Process the camera image data (e.g., display using OpenCV)
+#         image_data = msg.img_data
+#         image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
+#         print(image)
+#         cv2.imshow('Camera Feed', image)
+#         cv2.waitKey(1)
 
-        # Process the camera frames from MAVSDK
-        async for camera_frame in camera:
-            process_camera_frames(camera_frame)
-
-
-# Create an event loop and run the main coroutine
-loop = asyncio.get_event_loop()
-try:
-    loop.run_until_complete(main())
-except KeyboardInterrupt:
-    pass
-
-print("Now let's land")
-vehicle.mode = VehicleMode("RTL")
+# print("Now let's land")
+# vehicle.mode = VehicleMode("RTL")
 # Close vehicle object
 vehicle.close()
+
