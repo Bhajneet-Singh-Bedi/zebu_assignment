@@ -2,16 +2,10 @@ from dronekit import connect, VehicleMode, LocationGlobalRelative
 from pymavlink import mavutil
 import time
 import math
-
-import cv2.aruco as aruco
-from mavsdk import System
-# import numpy as np
 import cv2
-import asyncio
-# from mavsdk.camera import (CameraError, Mode)
-# from mavsdk import System
-
-
+from cv_bridge import CvBridge, CvBridgeError
+import rospy
+from sensor_msgs.msg import Image
 
 
 # Connection IP address configuration
@@ -20,13 +14,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--connect', default='127.0.0.1:14550')
 args = parser.parse_args()
 
+rospy.init_node('opencv_example', anonymous=True)
+
+bridge = CvBridge()
 # # Connect to the Vehicle
-# print ('Connecting to vehicle on: %s' % args.connect)
-# drone = System()
-
 vehicle = connect(args.connect, baud=921600)
-
-
 #921600 is the baudrate that you have set in the mission plannar or qgc
 
 # Function to arm and then takeoff to a user specified altitude
@@ -83,15 +75,10 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 arm_and_takeoff(2)
 print("Take off complete")
-
-
 print("Doing Spiral now")
-#spiral(0,4,-4,5)
 
-# Specify the parameters for the spiral trajectory
-v_t = 1  # Tangential velocity (desired velocity of the drone along the spiral trajectory)
-n = 0.1  # Frequency or number of revolutions of the spiral
-
+v_t = 1  
+n = 0.1  
 
 # Start the spiral trajectory
 start_time = time.time()
@@ -111,11 +98,61 @@ while True:
         break
     
 
+# async def run():
+    
+#     print('lala')
+#     await drone.connect(system_address="127.0.0.1:14550")
+
+#     print("Waiting for drone to connect...")
+#     async for state in drone.core.connection_state():
+#         if state.is_connected:
+#             print(f"-- Connected to drone!")
+#             break
+        
+#     print_mode_task = asyncio.ensure_future(print_mode(drone))
+#     print_status_task = asyncio.ensure_future(print_status(drone))
+#     running_tasks = [print_mode_task, print_status_task]
+
+#     print("Setting mode to 'PHOTO'")
+#     try:
+#         await drone.camera.set_mode(Mode.PHOTO)
+#     except CameraError as error:
+#         print(f"Setting mode failed with error code: {error._result.result}")
+
+#     await asyncio.sleep(2)
+
+#     print("Taking a photo")
+#     try:
+#         await drone.camera.take_photo()
+#     except CameraError as error:
+#         print(f"Couldn't take photo: {error._result.result}")
+
+#     # Shut down the running coroutines (here 'print_mode()' and
+#     # 'print_status()')
+#     for task in running_tasks:
+#         task.cancel()
+#         try:
+#             await task
+#         except asyncio.CancelledError:
+#             pass
+#     await asyncio.get_event_loop().shutdown_asyncgens()
+
+
+# async def print_mode(drone):
+#     async for mode in drone.camera.mode():
+#         print(f"Camera mode: {mode}")
+
+
+# async def print_status(drone):
+#     async for status in drone.camera.status():
+#         print(status)
+
 
 # Get the world object
-image = vehicle.camera.capture_image()
-print(image)
 
+
+
+# asyncio.run(run())
 
 # master = mavutil.mavlink_connection('tcp:127.0.0.1:5760')
 
@@ -146,8 +183,43 @@ print(image)
 #         cv2.imshow('Camera Feed', image)
 #         cv2.waitKey(1)
 
-# print("Now let's land")
-# vehicle.mode = VehicleMode("RTL")
-# Close vehicle object
-vehicle.close()
+
+
+# Opening camera for further operations.
+
+# Define a function to show the image in an OpenCV Window
+def show_image(img):
+    cv2.imshow("Image Window", img)
+    k = cv2.waitKey(0)
+    if k==ord('q'):
+      cv2.destroyAllWindows()
+
+# Define a callback for the Image message
+def image_callback(img_msg):
+    # log some info about the image topic
+    rospy.loginfo(img_msg.header)
+
+    # Try to convert the ROS Image message to a CV2 Image
+    try:
+        cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
+    except CvBridgeError as e:
+        rospy.logerr("CvBridge Error: {0}".format(e))
+
+    # Show the converted image
+    show_image(cv_image)
+
+# Initalize a subscriber to the "/camera/rgb/image_raw" topic with the function "image_callback" as a callback
+while True:
+    sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+
+    # Initialize an OpenCV Window named "Image Window"
+    cv2.namedWindow("Image Window", 1)
+
+    # Loop to keep the program from shutting down unless ROS is shut down, or CTRL+C is pressed
+    while not rospy.is_shutdown():
+        rospy.spin()
+    print("Now let's land")
+    vehicle.mode = VehicleMode("RTL")
+    # Close vehicle object
+    vehicle.close()
 
