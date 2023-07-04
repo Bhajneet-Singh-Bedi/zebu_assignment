@@ -190,9 +190,7 @@ while True:
 # Define a function to show the image in an OpenCV Window
 def show_image(img):
     cv2.imshow("Image Window", img)
-    k = cv2.waitKey(0)
-    if k==ord('q'):
-      cv2.destroyAllWindows()
+    cv2.waitKey(0)
 
 # Define a callback for the Image message
 def image_callback(img_msg):
@@ -209,17 +207,17 @@ def image_callback(img_msg):
     show_image(cv_image)
 
 # Initalize a subscriber to the "/camera/rgb/image_raw" topic with the function "image_callback" as a callback
-while True:
-    sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
 
-    # Initialize an OpenCV Window named "Image Window"
-    cv2.namedWindow("Image Window", 1)
+sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
 
-    # Loop to keep the program from shutting down unless ROS is shut down, or CTRL+C is pressed
-    while not rospy.is_shutdown():
-        rospy.spin()
-    print("Now let's land")
-    vehicle.mode = VehicleMode("RTL")
-    # Close vehicle object
-    vehicle.close()
+# Initialize an OpenCV Window named "Image Window"
+cv2.namedWindow("Image Window", 1)
+
+# Loop to keep the program from shutting down unless ROS is shut down, or CTRL+C is pressed
+while not rospy.is_shutdown():
+    rospy.spin()
+print("Now let's land")
+vehicle.mode = VehicleMode("RTL")
+# Close vehicle object
+vehicle.close()
 
