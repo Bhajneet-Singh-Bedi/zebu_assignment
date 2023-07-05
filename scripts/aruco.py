@@ -189,8 +189,9 @@ while True:
 
 # Define a function to show the image in an OpenCV Window
 def show_image(img):
-    cv2.imshow("Image Window", img)
-    cv2.waitKey(0)
+    k = cv2.imshow("Image Window", img)
+    if  cv2.waitKey(0) or k == ord('q'):
+       cv2.destroyAllWindows()
 
 # Define a callback for the Image message
 def image_callback(img_msg):
@@ -207,8 +208,8 @@ def image_callback(img_msg):
     show_image(cv_image)
 
 # Initalize a subscriber to the "/camera/rgb/image_raw" topic with the function "image_callback" as a callback
-
-sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+while True:
+    sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
 
 # Initialize an OpenCV Window named "Image Window"
 cv2.namedWindow("Image Window", 1)
