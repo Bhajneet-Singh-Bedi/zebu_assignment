@@ -17,21 +17,20 @@ args = parser.parse_args()
 rospy.init_node('opencv_example', anonymous=True)
 
 bridge = CvBridge()
-# # Connect to the Vehicle
+# Connect to the Vehicle
 vehicle = connect(args.connect, baud=921600)
-#921600 is the baudrate that you have set in the mission plannar or qgc
 
-# Function to arm and then takeoff to a user specified altitude
+
 def arm_and_takeoff(aTargetAltitude):
 
   print ("Basic pre-arm checks")
-  # Don't let the user try to arm until autopilot is ready
+
   while not vehicle.is_armable:
     print (" Waiting for vehicle to initialise...")
     time.sleep(1)
         
   print ("Arming motors")
-  # Copter should arm in GUIDED mode
+
   vehicle.mode    = VehicleMode("GUIDED")
   vehicle.armed   = True
 
@@ -40,12 +39,12 @@ def arm_and_takeoff(aTargetAltitude):
     time.sleep(1)
 
   print ("Taking off!")
-  vehicle.simple_takeoff(aTargetAltitude) # Take off to target altitude
+  vehicle.simple_takeoff(aTargetAltitude) 
 
-  # Check that vehicle has reached takeoff altitude
+
   while True:
     print (" Altitude: ", vehicle.location.global_relative_frame.alt) 
-    #Break and return from function just below target altitude.        
+
     if vehicle.location.global_relative_frame.alt>=aTargetAltitude*0.95: 
       print ("Reached target altitude")
       break
@@ -85,7 +84,7 @@ start_time = time.time()
 while True:
     current_time = time.time() - start_time
     
-    # Calculate the velocities in each direction
+
     v_x = v_t * math.sin(2 * math.pi * n * current_time)
     v_y = v_t * math.cos(2 * math.pi * n * current_time)
     v_z = -v_t 
@@ -187,34 +186,33 @@ while True:
 
 # Opening camera for further operations.
 
-# Define a function to show the image in an OpenCV Window
+
 def show_image(img):
     k = cv2.imshow("Image Window", img)
     if  cv2.waitKey(0) or k == ord('q'):
        cv2.destroyAllWindows()
 
-# Define a callback for the Image message
+
 def image_callback(img_msg):
-    # log some info about the image topic
+
     rospy.loginfo(img_msg.header)
 
-    # Try to convert the ROS Image message to a CV2 Image
+    # ROS Image message to a CV2 Image
     try:
         cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
     except CvBridgeError as e:
         rospy.logerr("CvBridge Error: {0}".format(e))
 
-    # Show the converted image
+    # showing the converted image
     show_image(cv_image)
 
-# Initalize a subscriber to the "/camera/rgb/image_raw" topic with the function "image_callback" as a callback
-while True:
-    sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+# Subscriber initialization
+sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
 
-# Initialize an OpenCV Window named "Image Window"
+
 cv2.namedWindow("Image Window", 1)
 
-# Loop to keep the program from shutting down unless ROS is shut down, or CTRL+C is pressed
+# looping it
 while not rospy.is_shutdown():
     rospy.spin()
 print("Now let's land")
