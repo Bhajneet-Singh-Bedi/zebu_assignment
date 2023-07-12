@@ -2,10 +2,12 @@ from dronekit import connect, VehicleMode, LocationGlobalRelative
 from pymavlink import mavutil
 import time
 import math
-import cv2
+import numpy as np
+import cv2 
 from cv_bridge import CvBridge, CvBridgeError
 import rospy
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
 
 
 # Connection IP address configuration
@@ -72,8 +74,9 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 
 
-arm_and_takeoff(2)
+arm_and_takeoff(50)
 print("Take off complete")
+"""
 print("Doing Spiral now")
 
 v_t = 1  
@@ -95,7 +98,7 @@ while True:
     # Break the loop after a certain duration (e.g., 30 seconds)
     if current_time >= 30:
         break
-    
+"""
 
 # async def run():
     
@@ -187,34 +190,68 @@ while True:
 # Opening camera for further operations.
 
 
-def show_image(img):
-    k = cv2.imshow("Image Window", img)
-    if  cv2.waitKey(0) or k == ord('q'):
-       cv2.destroyAllWindows()
+# def show_image(img):
+#     print('check point 1')
+#     k = cv2.imshow("Image Window", img)
+#     if  cv2.waitKey(3) or k == ord('q'):
+#         print('check point 2')
+#         cv2.destroyAllWindows()
 
 
-def image_callback(img_msg):
+# def image_callback(img_msg):
+#     print('check point 3')
+#     rospy.loginfo(img_msg.header)
 
-    rospy.loginfo(img_msg.header)
+#     # ROS Image message to a CV2 Image
+#     try:
+#         cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
+#         print('check point 4')
+#     except CvBridgeError as e:
+#         rospy.logerr("CvBridge Error: {0}".format(e))
+#         print('check point 5')
 
-    # ROS Image message to a CV2 Image
+#     # showing the converted image
+#     show_image(cv_image)
+#     print('check point 6')
+
+# # Subscriber initialization
+
+# sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+# print('check point 7')
+# cv2.namedWindow("Image Window", 1)
+# print('check point 8')
+# # looping it
+# while not rospy.is_shutdown():
+#     print('check point 0')
+#     rospy.spin()
+
+def image_callback(msg):
+    bridge = CvBridge()
+    print('Checkpoint 3')
     try:
-        cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        # Convert the ROS Image message to OpenCV format
+        cv_image = bridge.imgmsg_to_cv2(msg, "bgr8")
+        print('Checkpoint 4')
     except CvBridgeError as e:
-        rospy.logerr("CvBridge Error: {0}".format(e))
+        print('Checkpoint 5')
+        print(e)
+        return
 
-    # showing the converted image
-    show_image(cv_image)
+    # Display the image
+    cv2.imshow("Camera Feed", cv_image)
+    spiral(3,3,0)
+    print('Checkpoint 6')
+    cv2.waitKey(1)
 
-# Subscriber initialization
-sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+# Initialize the ROS node
+# rospy.init_node("camera_subscriber")
 
-
-cv2.namedWindow("Image Window", 1)
-
-# looping it
-while not rospy.is_shutdown():
-    rospy.spin()
+# Subscribe to the camera topic
+rospy.Subscriber("/webcam/image_raw", Image, image_callback)
+print('Checkpoint 1')
+# Spin and wait for incoming messages
+rospy.spin()
+print('Checkpoint 2')
 print("Now let's land")
 vehicle.mode = VehicleMode("RTL")
 # Close vehicle object
