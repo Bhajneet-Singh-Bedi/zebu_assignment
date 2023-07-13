@@ -85,7 +85,6 @@
 
       </link>
     </model>
-   
 
     <include>
       <uri>model://sun</uri>
@@ -99,4 +98,3 @@
     </model>
   </world>
 </sdf>
-

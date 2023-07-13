@@ -7,7 +7,6 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import rospy
 from sensor_msgs.msg import Image
-from sensor_msgs.msg import CameraInfo
 
 
 # Connection IP address configuration
@@ -74,7 +73,7 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 
 
-arm_and_takeoff(50)
+arm_and_takeoff(3)
 print("Take off complete")
 """
 print("Doing Spiral now")
@@ -239,9 +238,17 @@ def image_callback(msg):
 
     # Display the image
     cv2.imshow("Camera Feed", cv_image)
-    spiral(3,3,0)
-    print('Checkpoint 6')
-    cv2.waitKey(1)
+    # spiral(3,3,0)
+    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+    arucoParams = cv2.aruco.DetectorParameters()
+    detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
+    markerCorners, markerIds, rejectedCandidates = detectors.detectMarkers(cv_image)
+    print("This is something: ", markerIds)
+    #print('Checkpoint 6')
+    k = cv2.waitKey(50)
+    if k==ord('q'):
+       cv2.destroyAllWindows()
+
 
 # Initialize the ROS node
 # rospy.init_node("camera_subscriber")

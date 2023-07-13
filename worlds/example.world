@@ -94,7 +94,7 @@
           <geometry>
             <mesh>
               <uri>model://marker/meshes/marker.dae</uri>
-              <scale>1 1 1</scale>
+              <scale>3 3 3</scale>
             </mesh>
           </geometry>
         </visual>
