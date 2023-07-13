@@ -256,4 +256,3 @@ print("Now let's land")
 vehicle.mode = VehicleMode("RTL")
 # Close vehicle object
 vehicle.close()
-
