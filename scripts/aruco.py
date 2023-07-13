@@ -73,7 +73,7 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 
 
-arm_and_takeoff(3)
+arm_and_takeoff(7)
 print("Take off complete")
 """
 print("Doing Spiral now")
@@ -239,7 +239,7 @@ def image_callback(msg):
     # Display the image
     cv2.imshow("Camera Feed", cv_image)
     # spiral(3,3,0)
-    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
     arucoParams = cv2.aruco.DetectorParameters()
     detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
     markerCorners, markerIds, rejectedCandidates = detectors.detectMarkers(cv_image)
