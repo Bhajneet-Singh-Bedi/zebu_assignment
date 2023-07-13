@@ -4,11 +4,21 @@ import time
 import math
 import numpy as np
 import cv2 
+import cv2.aruco as aruco
 from cv_bridge import CvBridge, CvBridgeError
 import rospy
 from sensor_msgs.msg import Image
+#global argument
+ar_id=2
+marker_size=4
+calib_path="/home/bhajneet/catkin_ws/src/zebu/scripts/"
+camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam.txt', delimiter=',')
+camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam.txt', delimiter=',')
 
-
+R_flip = np.zeros((3,3), dtype=np.float32)
+R_flip[0,0]=1.0
+R_flip[1,1]=-1.0
+R_flip[2,2]=-1.0
 # Connection IP address configuration
 import argparse  
 parser = argparse.ArgumentParser()
@@ -99,131 +109,6 @@ while True:
         break
 """
 
-# async def run():
-    
-#     print('lala')
-#     await drone.connect(system_address="127.0.0.1:14550")
-
-#     print("Waiting for drone to connect...")
-#     async for state in drone.core.connection_state():
-#         if state.is_connected:
-#             print(f"-- Connected to drone!")
-#             break
-        
-#     print_mode_task = asyncio.ensure_future(print_mode(drone))
-#     print_status_task = asyncio.ensure_future(print_status(drone))
-#     running_tasks = [print_mode_task, print_status_task]
-
-#     print("Setting mode to 'PHOTO'")
-#     try:
-#         await drone.camera.set_mode(Mode.PHOTO)
-#     except CameraError as error:
-#         print(f"Setting mode failed with error code: {error._result.result}")
-
-#     await asyncio.sleep(2)
-
-#     print("Taking a photo")
-#     try:
-#         await drone.camera.take_photo()
-#     except CameraError as error:
-#         print(f"Couldn't take photo: {error._result.result}")
-
-#     # Shut down the running coroutines (here 'print_mode()' and
-#     # 'print_status()')
-#     for task in running_tasks:
-#         task.cancel()
-#         try:
-#             await task
-#         except asyncio.CancelledError:
-#             pass
-#     await asyncio.get_event_loop().shutdown_asyncgens()
-
-
-# async def print_mode(drone):
-#     async for mode in drone.camera.mode():
-#         print(f"Camera mode: {mode}")
-
-
-# async def print_status(drone):
-#     async for status in drone.camera.status():
-#         print(status)
-
-
-# Get the world object
-
-
-
-# asyncio.run(run())
-
-# master = mavutil.mavlink_connection('tcp:127.0.0.1:5760')
-
-# # Enable the camera module
-# master.mav.command_long_send(
-#     master.target_system, master.target_component,
-#     mavutil.mavlink.MAV_CMD_PREFLIGHT_STORAGE,
-#     0, 1, 0, 0, 0, 0, 0, 0
-# )
-# print('started screaming')
-# # Start the video streaming
-# master.mav.command_long_send(
-#     master.target_system, master.target_component,
-#     mavutil.mavlink.MAV_CMD_VIDEO_START_CAPTURE,
-#     0, 0, 0, 0, 0, 0, 0, 0
-# )
-
-# print('reveiving and displaying')
-
-# # Receive and display the camera feed
-# while True:
-#     msg = master.recv_match(type='CAMERA_FEEDBACK', blocking=True, timeout=1)
-#     if msg:
-#         # Process the camera image data (e.g., display using OpenCV)
-#         image_data = msg.img_data
-#         image = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
-#         print(image)
-#         cv2.imshow('Camera Feed', image)
-#         cv2.waitKey(1)
-
-
-
-# Opening camera for further operations.
-
-
-# def show_image(img):
-#     print('check point 1')
-#     k = cv2.imshow("Image Window", img)
-#     if  cv2.waitKey(3) or k == ord('q'):
-#         print('check point 2')
-#         cv2.destroyAllWindows()
-
-
-# def image_callback(img_msg):
-#     print('check point 3')
-#     rospy.loginfo(img_msg.header)
-
-#     # ROS Image message to a CV2 Image
-#     try:
-#         cv_image = bridge.imgmsg_to_cv2(img_msg, "passthrough")
-#         print('check point 4')
-#     except CvBridgeError as e:
-#         rospy.logerr("CvBridge Error: {0}".format(e))
-#         print('check point 5')
-
-#     # showing the converted image
-#     show_image(cv_image)
-#     print('check point 6')
-
-# # Subscriber initialization
-
-# sub_image = rospy.Subscriber("/webcam/image_raw", Image, image_callback)
-# print('check point 7')
-# cv2.namedWindow("Image Window", 1)
-# print('check point 8')
-# # looping it
-# while not rospy.is_shutdown():
-#     print('check point 0')
-#     rospy.spin()
-
 def image_callback(msg):
     bridge = CvBridge()
     print('Checkpoint 3')
@@ -237,23 +122,148 @@ def image_callback(msg):
         return
 
     # Display the image
-    cv2.imshow("Camera Feed", cv_image)
     # spiral(3,3,0)
     arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
     arucoParams = cv2.aruco.DetectorParameters()
     detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
-    markerCorners, markerIds, rejectedCandidates = detectors.detectMarkers(cv_image)
-    print("This is something: ", markerIds)
-    #print('Checkpoint 6')
-    k = cv2.waitKey(50)
-    if k==ord('q'):
-       cv2.destroyAllWindows()
+    corners, ids, rejected = detectors.detectMarkers(cv_image)
+    # print("This is something: ", markerCorners , markerIds , rejectedCandidates)
+    if len(corners) > 0:
+      # flatten the ArUco IDs list
+      ids = ids.flatten()
+      # loop over the detected ArUCo corners
+      for (markerCorner, markerID) in zip(corners, ids):
+        # extract the marker corners (which are always returned in
+        # top-left, top-right, bottom-right, and bottom-left order)
+        corners = markerCorner.reshape((4, 2))
+        (topLeft, topRight, bottomRight, bottomLeft) = corners
+        # convert each of the (x, y)-coordinate pairs to integers
+        topRight = (int(topRight[0]), int(topRight[1]))
+        bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+        bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+        topLeft = (int(topLeft[0]), int(topLeft[1]))
+        # cv2.line(cv_image, topLeft, topRight, (0, 255, 0), 2)
+        # cv2.line(cv_image, topRight, bottomRight, (0, 255, 0), 2)
+        # cv2.line(cv_image, bottomRight, bottomLeft, (0, 255, 0), 2)
+        # cv2.line(cv_image, bottomLeft, topLeft, (0, 255, 0), 2)
+        # compute and draw the center (x, y)-coordinates of the ArUco
+        # marker
+        cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+        cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+        # cv2.circle(cv_image, (cX, cY), 4, (0, 0, 255), -1)
+        marker_points = np.array([
+        [-marker_size/2, -marker_size/2, 0],
+        [-marker_size/2, marker_size/2, 0],
+        [marker_size/2, marker_size/2, 0],
+        [marker_size/2, -marker_size/2, 0]
+    ], dtype=np.float32)
+        image_points = np.squeeze(corners)
+        # draw the ArUco marker ID on the image
+        cv2.putText(cv_image, str(markerID),
+          (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
+          0.5, (0, 255, 0), 2)
+        #print("[INFO] ArUco marker ID: {}".format(markerID))
+        _, rvec, tvec = cv2.solvePnP(marker_points, image_points, camera_matrix, camera_distortion)
+        #print(rvec, tvec)
+        #aruco.drawDetectedMarkers(cv_image, corners)
+        cv2.drawFrameAxes(cv_image, camera_matrix, camera_distortion, rvec, tvec, 10)
+        x=tvec[0]
+        y=tvec[1]
+        z=tvec[2]
+        
+        R_ct=np.matrix(cv2.Rodrigues(rvec)[0])
+        R_tc=R_ct.T
+        roll_marker, pitch_marker, yaw_marker = rotationMatrixToEulerAngles(R_flip*R_tc)
+        #pos_camera = -R_tc*np.matrix(tvec).T
+        #print("Marker X = %.1f  Y = %.1f  Z = %.1f  - fps = %.0f",tvec[0], tvec[1], tvec[2])
+        
+        x_cm, y_cm= camera_to_uav(x, y)
+        z_cm=vehicle.location.global_relative_frame.alt*100.0
+        angle_x, angle_y    = marker_position_to_angle(x_cm, y_cm, z_cm)
+        send_land_message_v2(x_rad=angle_x, y_rad=angle_y, dist_m=z_cm*0.01, time_usec=time.time()*1e6)
+        cv2.imshow("Camera Feed", cv_image)
+        #print('Checkpoint 6')
+        k = cv2.waitKey(50)
+        if k==ord('q'):
+          cv2.destroyAllWindows()
 
+def rotationMatrixToEulerAngles(R):
+    # Calculates rotation matrix to euler angles
+    # The result is the same as MATLAB except the order
+    # of the euler angles ( x and z are swapped ).
+    
+        def isRotationMatrix(R):
+            Rt = np.transpose(R)
+            shouldBeIdentity = np.dot(Rt, R)
+            I = np.identity(3, dtype=R.dtype)
+            n = np.linalg.norm(I - shouldBeIdentity)
+            return n < 1e-6        
+        assert (isRotationMatrix(R))
+
+        sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+
+        singular = sy < 1e-6
+
+        if not singular:
+            x = math.atan2(R[2, 1], R[2, 2])
+            y = math.atan2(-R[2, 0], sy)
+            z = math.atan2(R[1, 0], R[0, 0])
+        else:
+            x = math.atan2(-R[1, 2], R[1, 1])
+            y = math.atan2(-R[2, 0], sy)
+            z = 0
+
+        return np.array([x, y, z])
+def camera_to_uav(x_cam, y_cam):
+    x_uav = x_cam
+    y_uav = y_cam
+    return(x_uav, y_uav)
+
+
+def marker_position_to_angle(x, y, z):
+    
+    angle_x = math.atan2(x,z)
+    angle_y = math.atan2(y,z)
+    
+    return (angle_x, angle_y)
+
+def send_distance_message( dist):
+    msg = vehicle.message_factory.distance_sensor_encode(
+        0,          # time since system boot, not used
+        1,          # min distance cm
+        10000,      # max distance cm
+        dist,       # current distance, must be int
+        0,          # type = laser?
+        0,          # onboard id, not used
+        mavutil.mavlink.MAV_SENSOR_ROTATION_PITCH_270, # must be set to MAV_SENSOR_ROTATION_PITCH_270 for mavlink rangefinder, represents downward facing
+        0           # covariance, not used
+    )
+    vehicle.send_mavlink(msg)
+
+def send_land_message_v2(x_rad=0, y_rad=0, dist_m=0, x_m=0,y_m=0,z_m=0, time_usec=0, target_num=0):
+    msg = vehicle.message_factory.landing_target_encode(
+        time_usec,          # time target data was processed, as close to sensor capture as possible
+        target_num,          # target num, not used
+        mavutil.mavlink.MAV_FRAME_BODY_NED, # frame, not used
+        x_rad,          # X-axis angular offset, in radians
+        y_rad,          # Y-axis angular offset, in radians
+        dist_m,          # distance, in meters
+        0,          # Target x-axis size, in radians
+        0,          # Target y-axis size, in radians
+        x_m,          # x	float	X Position of the landing target on MAV_FRAME
+        y_m,          # y	float	Y Position of the landing target on MAV_FRAME
+        z_m,          # z	float	Z Position of the landing target on MAV_FRAME
+        (1,0,0,0),  # q	float[4]	Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+        2,          # type of landing target: 2 = Fiducial marker
+        1,          # position_valid boolean
+    )
+    print (msg)
+    time.sleep(0.5)
 
 # Initialize the ROS node
 # rospy.init_node("camera_subscriber")
 
-# Subscribe to the camera topic
+# Subscribe to the camera topic 
 rospy.Subscriber("/webcam/image_raw", Image, image_callback)
 print('Checkpoint 1')
 # Spin and wait for incoming messages
