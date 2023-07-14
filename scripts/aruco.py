@@ -170,7 +170,8 @@ def image_callback(msg):
         x=tvec[0]
         y=tvec[1]
         z=tvec[2]
-        
+        target_location = LocationGlobalRelative(x, y, -z)
+        vehicle.simple_goto(target_location)
         R_ct=np.matrix(cv2.Rodrigues(rvec)[0])
         R_tc=R_ct.T
         roll_marker, pitch_marker, yaw_marker = rotationMatrixToEulerAngles(R_flip*R_tc)
@@ -180,7 +181,7 @@ def image_callback(msg):
         x_cm, y_cm= camera_to_uav(x, y)
         z_cm=vehicle.location.global_relative_frame.alt*100.0
         angle_x, angle_y    = marker_position_to_angle(x_cm, y_cm, z_cm)
-        send_land_message_v2(x_rad=angle_x, y_rad=angle_y, dist_m=z_cm*0.01, time_usec=time.time()*1e6)
+        send_land_message_v1(x_rad=angle_x, y_rad=angle_y, dist_m=z_cm*0.01, time_usec=time.time()*1e6)
         cv2.imshow("Camera Feed", cv_image)
         #print('Checkpoint 6')
         k = cv2.waitKey(50)
@@ -227,20 +228,40 @@ def marker_position_to_angle(x, y, z):
     
     return (angle_x, angle_y)
 
-def send_distance_message( dist):
-    msg = vehicle.message_factory.distance_sensor_encode(
-        0,          # time since system boot, not used
-        1,          # min distance cm
-        10000,      # max distance cm
-        dist,       # current distance, must be int
-        0,          # type = laser?
-        0,          # onboard id, not used
-        mavutil.mavlink.MAV_SENSOR_ROTATION_PITCH_270, # must be set to MAV_SENSOR_ROTATION_PITCH_270 for mavlink rangefinder, represents downward facing
-        0           # covariance, not used
-    )
-    vehicle.send_mavlink(msg)
+# def send_distance_message( dist):
+#     msg = vehicle.message_factory.distance_sensor_encode(
+#         0,          # time since system boot, not used
+#         1,          # min distance cm
+#         10000,      # max distance cm
+#         dist,       # current distance, must be int
+#         0,          # type = laser?
+#         0,          # onboard id, not used
+#         mavutil.mavlink.MAV_SENSOR_ROTATION_PITCH_270, # must be set to MAV_SENSOR_ROTATION_PITCH_270 for mavlink rangefinder, represents downward facing
+#         0           # covariance, not used
+#     )
+#     vehicle.send_mavlink(msg)
 
-def send_land_message_v2(x_rad=0, y_rad=0, dist_m=0, x_m=0,y_m=0,z_m=0, time_usec=0, target_num=0):
+# def send_land_message_v2(x_rad=0, y_rad=0, dist_m=0, x_m=0,y_m=0,z_m=0, time_usec=0, target_num=0):
+#     msg = vehicle.message_factory.landing_target_encode(
+#         time_usec,          # time target data was processed, as close to sensor capture as possible
+#         target_num,          # target num, not used
+#         mavutil.mavlink.MAV_FRAME_BODY_NED, # frame, not used
+#         x_rad,          # X-axis angular offset, in radians
+#         y_rad,          # Y-axis angular offset, in radians
+#         dist_m,          # distance, in meters
+#         0,          # Target x-axis size, in radians
+#         0,          # Target y-axis size, in radians
+#         x_m,          # x	float	X Position of the landing target on MAV_FRAME
+#         y_m,          # y	float	Y Position of the landing target on MAV_FRAME
+#         z_m,          # z	float	Z Position of the landing target on MAV_FRAME
+#         (1,0,0,0),  # q	float[4]	Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+#         2,          # type of landing target: 2 = Fiducial marker
+#         1,          # position_valid boolean
+#     )
+#     print (msg)
+#     time.sleep(0.5)
+
+def send_land_message_v1(x_rad=0, y_rad=0, dist_m=0, time_usec=0, target_num=0):
     msg = vehicle.message_factory.landing_target_encode(
         time_usec,          # time target data was processed, as close to sensor capture as possible
         target_num,          # target num, not used
@@ -250,15 +271,11 @@ def send_land_message_v2(x_rad=0, y_rad=0, dist_m=0, x_m=0,y_m=0,z_m=0, time_use
         dist_m,          # distance, in meters
         0,          # Target x-axis size, in radians
         0,          # Target y-axis size, in radians
-        x_m,          # x	float	X Position of the landing target on MAV_FRAME
-        y_m,          # y	float	Y Position of the landing target on MAV_FRAME
-        z_m,          # z	float	Z Position of the landing target on MAV_FRAME
-        (1,0,0,0),  # q	float[4]	Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
-        2,          # type of landing target: 2 = Fiducial marker
-        1,          # position_valid boolean
     )
     print (msg)
+    vehicle.send_mavlink(msg)
     time.sleep(0.5)
+
 
 # Initialize the ROS node
 # rospy.init_node("camera_subscriber")
