@@ -85,7 +85,7 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 arm_and_takeoff(7)
 print("Take off complete")
-"""
+
 print("Doing Spiral now")
 
 v_t = 1  
@@ -107,7 +107,7 @@ while True:
     # Break the loop after a certain duration (e.g., 30 seconds)
     if current_time >= 30:
         break
-"""
+
 
 def image_callback(msg):
     bridge = CvBridge()
