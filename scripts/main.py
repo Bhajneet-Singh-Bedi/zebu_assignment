@@ -81,9 +81,9 @@ while True:
     current_time = time.time() - start_time
     
     # Calculate the velocities in each direction
-    v_x = v_t * math.sin(2 * math.pi * n * current_time)
-    v_y = v_t * math.cos(2 * math.pi * n * current_time)
-    v_z = -v_t 
+    v_x = v_t 
+    v_y = v_t * math.sin(2 * math.pi * n * current_time)
+    v_z = -v_t * math.cos(2 * math.pi * n * current_time)
     
     # Send velocity commands to the drone
     spiral(v_x, v_y, v_z)

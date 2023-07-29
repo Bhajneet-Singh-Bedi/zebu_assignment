@@ -12,8 +12,8 @@ from sensor_msgs.msg import Image
 ar_id=2
 marker_size=4
 calib_path="/home/bhajneet/catkin_ws/src/zebu/scripts/"
-camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam.txt', delimiter=',')
-camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam.txt', delimiter=',')
+camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
+camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
 
 R_flip = np.zeros((3,3), dtype=np.float32)
 R_flip[0,0]=1.0
@@ -92,6 +92,7 @@ v_t = 1
 n = 0.1  
 
 # Start the spiral trajectory
+"""
 start_time = time.time()
 while True:
     current_time = time.time() - start_time
@@ -107,7 +108,7 @@ while True:
     # Break the loop after a certain duration (e.g., 30 seconds)
     if current_time >= 30:
         break
-
+"""
 
 def image_callback(msg):
     bridge = CvBridge()
