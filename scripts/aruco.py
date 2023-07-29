@@ -85,7 +85,7 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 arm_and_takeoff(7)
 print("Take off complete")
-
+"""
 print("Doing Spiral now")
 
 v_t = 1  
