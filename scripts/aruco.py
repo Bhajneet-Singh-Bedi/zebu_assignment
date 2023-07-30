@@ -3,6 +3,7 @@ from pymavlink import mavutil
 import time
 import math
 import numpy as np
+import numpy_ros as rnp
 import cv2 
 import cv2.aruco as aruco
 from cv_bridge import CvBridge, CvBridgeError
@@ -12,8 +13,12 @@ from sensor_msgs.msg import Image
 ar_id=2
 marker_size=4
 calib_path="/home/bhajneet/catkin_ws/src/zebu/scripts/"
-camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
-camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
+# camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
+# camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
+
+camera_matrix = np.array([[530.8269276712998, 0.0, 320.5], [0.0, 530.8269276712998, 240.5], [0.0, 0.0, 1.0]])
+camera_distortion = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+
 
 R_flip = np.zeros((3,3), dtype=np.float32)
 R_flip[0,0]=1.0
@@ -30,7 +35,21 @@ rospy.init_node('opencv_example', anonymous=True)
 bridge = CvBridge()
 # Connect to the Vehicle
 vehicle = connect(args.connect, baud=921600)
+vehicle.parameters['PLND_ENABLE']=1
+vehicle.parameters['PLND_TYPE']=1
+vehicle.parameters['PLND_EST_TYPE']=0
+vehicle.parameters['LAND_SPEED']=30
 
+velocity=0.5
+horizontal_res=640
+vertical_res=480
+
+horizontal_fov=62.2 * (math.pi/180)
+vertical_fov=48.8 * (math.pi/180)
+
+found_count=0
+global notfound_count
+notfound_count=0
 
 def arm_and_takeoff(aTargetAltitude):
 
@@ -83,9 +102,9 @@ def spiral(velocity_x, velocity_y, velocity_z):
 
 
 
-arm_and_takeoff(7)
+arm_and_takeoff(6)
 print("Take off complete")
-"""
+
 print("Doing Spiral now")
 
 v_t = 1  
@@ -112,23 +131,100 @@ while True:
 
 def image_callback(msg):
     bridge = CvBridge()
-    print('Checkpoint 3')
+    # print('Checkpoint 3')
     try:
         # Convert the ROS Image message to OpenCV format
         cv_image = bridge.imgmsg_to_cv2(msg, "bgr8")
-        print('Checkpoint 4')
+        # print('Checkpoint 4')
     except CvBridgeError as e:
-        print('Checkpoint 5')
+        # print('Checkpoint 5')
         print(e)
         return
 
     # Display the image
     # spiral(3,3,0)
-    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
+    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
     arucoParams = cv2.aruco.DetectorParameters()
     detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
     corners, ids, rejected = detectors.detectMarkers(cv_image)
     # print("This is something: ", markerCorners , markerIds , rejectedCandidates)
+    marker_points = np.array([
+        [-marker_size/2, -marker_size/2, 0],
+        [-marker_size/2, marker_size/2, 0],
+        [marker_size/2, marker_size/2, 0],
+        [marker_size/2, -marker_size/2, 0]
+    ], dtype=np.float32)
+    try:
+        print('ck4')
+        if ids is not None:
+            print('ck3')
+            print(corners)
+
+            if ids[0]==ar_id:
+                # np_data = rnp.numpify(message)
+                ret, rvec, tvec = cv2.solvePnP(marker_points,np.squeeze(corners),camera_matrix,camera_distortion)
+                print('ck5')
+                # (rvec, tvec) = (ret[0][0,0,:],ret[1][0,0,:])
+                x = '{:.2f}'.format(tvec[0]) ###Xerror/distance between camera and aruco in CM
+                y = '{:.2f}'.format(tvec[1]) ###Yerror/distance between camera and aruco in CM
+                z = '{:.2f}'.format(tvec[2]) ###Zerror/distance between camera and aruco in CM
+
+                y_sum=0
+                x_sum=0
+
+                x_sum = corners[0][0][0][0] + corners[0][0][1][0] + corners[0][0][2][0] + corners[0][0][3][0]
+                y_sum = corners[0][0][0][1] + corners[0][0][1][1] + corners[0][0][2][1] + corners[0][0][3][1]
+
+                x_avg = x_sum / 4
+                y_avg = y_sum / 4
+
+                x_ang = (x_avg - horizontal_res*.5)*horizontal_fov/horizontal_res
+                y_ang = (y_avg - vertical_res*.5)*vertical_fov/vertical_res
+
+                if vehicle.mode !='LAND':
+                    vehicle.mode = VehicleMode('LAND')
+                    while vehicle.mode !='LAND':
+                        time.sleep(1)
+                    print ('Vehicle in LAND mode')
+                    send_land_message(x_ang,y_ang)
+                else:
+                    send_land_message(x_ang, y_ang)
+
+
+                marker_position = 'MARKER POSITION: x='+x+' y='+y+' z='+z
+
+                aruco.drawDetectedMarkers(cv_image,corners)
+                aruco.drawAxis(cv_image,camera_matrix,camera_distortion,rvec,tvec,10)
+
+                cv2.putText(cv_image,marker_position,(10,50),0,.7,(255,0,0),thickness=2)
+                print(marker_position)
+                print('Found Count: '+str(found_count))
+                # print ('FOUND COUNT: '+str(found_count)+ 'NOTFOUND COUNT: '+str(notfound_count))
+
+
+                found_count = found_count + 1
+            else:
+                print('ck 1')
+                pass
+                # notfound_count=notfound_count+1
+        else:
+            print('ck 2')
+            pass
+            # notfound_count=notfound_count+1
+    except Exception as e:
+        print ('Target likely not found')
+        print (e)
+        # notfound_count=notfound_count+1
+    # new_msg = rnp.msgify(Image, cv_image,encoding='rgb8')
+    # newimg_pub.publish(new_msg)
+    time_last = time.time()
+
+    cv2.imshow("Camera Feed", cv_image)
+    #print('Checkpoint 6')
+    k = cv2.waitKey(50)
+    if k==ord('q'):
+        cv2.destroyAllWindows()
+    """
     if len(corners) > 0:
       # flatten the ArUco IDs list
       ids = ids.flatten()
@@ -137,6 +233,7 @@ def image_callback(msg):
         # extract the marker corners (which are always returned in
         # top-left, top-right, bottom-right, and bottom-left order)
         corners = markerCorner.reshape((4, 2))
+        print(corners)
         (topLeft, topRight, bottomRight, bottomLeft) = corners
         # convert each of the (x, y)-coordinate pairs to integers
         topRight = (int(topRight[0]), int(topRight[1]))
@@ -166,7 +263,11 @@ def image_callback(msg):
         #print("[INFO] ArUco marker ID: {}".format(markerID))
         _, rvec, tvec = cv2.solvePnP(marker_points, image_points, camera_matrix, camera_distortion)
         #print(rvec, tvec)
-        #aruco.drawDetectedMarkers(cv_image, corners)
+        if ids is not None and corners is not None and len(ids) > 0 and len(corners) > 0:
+        #    print('lala')
+           aruco.drawDetectedMarkers(cv_image, marker_points, ids)
+        #    print('haha')
+        
         cv2.drawFrameAxes(cv_image, camera_matrix, camera_distortion, rvec, tvec, 10)
         x=tvec[0]
         y=tvec[1]
@@ -183,11 +284,26 @@ def image_callback(msg):
         z_cm=vehicle.location.global_relative_frame.alt*100.0
         angle_x, angle_y    = marker_position_to_angle(x_cm, y_cm, z_cm)
         send_land_message_v1(x_rad=angle_x, y_rad=angle_y, dist_m=z_cm*0.01, time_usec=time.time()*1e6)
+        
         cv2.imshow("Camera Feed", cv_image)
         #print('Checkpoint 6')
         k = cv2.waitKey(50)
         if k==ord('q'):
           cv2.destroyAllWindows()
+        """
+    
+
+def send_land_message(x,y):
+    msg=vehicle.message_factory.landing_target_encode(
+        0,
+        0,
+        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
+        x,
+        y,
+        0,0,0
+    )
+    vehicle.send_mavlink(msg)
+    vehicle.flush()
 
 def rotationMatrixToEulerAngles(R):
     # Calculates rotation matrix to euler angles
@@ -283,10 +399,10 @@ def send_land_message_v1(x_rad=0, y_rad=0, dist_m=0, time_usec=0, target_num=0):
 
 # Subscribe to the camera topic 
 rospy.Subscriber("/webcam/image_raw", Image, image_callback)
-print('Checkpoint 1')
+# print('Checkpoint 1')
 # Spin and wait for incoming messages
 rospy.spin()
-print('Checkpoint 2')
+# print('Checkpoint 2')
 print("Now let's land")
 vehicle.mode = VehicleMode("RTL")
 # Close vehicle object
