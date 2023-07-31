@@ -11,7 +11,7 @@ import rospy
 from sensor_msgs.msg import Image
 #global argument
 ar_id=2
-marker_size=4
+marker_size=40
 calib_path="/home/bhajneet/catkin_ws/src/zebu/scripts/"
 camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
 camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
@@ -47,9 +47,9 @@ vertical_res=480
 horizontal_fov=62.2 * (math.pi/180)
 vertical_fov=48.8 * (math.pi/180)
 
-found_count=0
-global notfound_count
-notfound_count=0
+
+notfound_count, found_count=0,0
+
 
 def arm_and_takeoff(aTargetAltitude):
 
@@ -130,6 +130,7 @@ while True:
 """
 
 def image_callback(msg):
+    global notfound_count, found_count 
     bridge = CvBridge()
     # print('Checkpoint 3')
     try:
@@ -147,6 +148,8 @@ def image_callback(msg):
     arucoParams = cv2.aruco.DetectorParameters()
     detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
     corners, ids, rejected = detectors.detectMarkers(cv_image)
+    # print(corners)
+    aruco.drawDetectedMarkers(cv_image,corners)
     # print("This is something: ", markerCorners , markerIds , rejectedCandidates)
     marker_points = np.array([
         [-marker_size/2, -marker_size/2, 0],
@@ -155,26 +158,37 @@ def image_callback(msg):
         [marker_size/2, -marker_size/2, 0]
     ], dtype=np.float32)
     try:
-        print('ck4')
         if ids is not None:
-            print('ck3')
+            corners = np.reshape(corners, (4, 2))
+            corners = np.squeeze(corners)
             print(corners)
-            # corners = np.squeeze(corners)
             if ids[0]==ar_id:
-                aruco.drawDetectedMarkers(cv_image,corners)
                 # np_data = rnp.numpify(message)
-                ret, rvec, tvec = cv2.solvePnP(marker_points,corners,camera_matrix,camera_distortion)
+                print('ck4')
+                _, rvec, tvec = cv2.solvePnP(marker_points,corners,camera_matrix,camera_distortion)
+                # print(rvec, tvec)
                 print('ck5')
                 # (rvec, tvec) = (ret[0][0,0,:],ret[1][0,0,:])
-                x = '{:.2f}'.format(tvec[0]) ###Xerror/distance between camera and aruco in CM
-                y = '{:.2f}'.format(tvec[1]) ###Yerror/distance between camera and aruco in CM
-                z = '{:.2f}'.format(tvec[2]) ###Zerror/distance between camera and aruco in CM
+                x = '{:.2f}'.format(tvec[1][0]) ###Xerror/distance between camera and aruco in CM
+                y = '{:.2f}'.format(tvec[1][0]) ###Yerror/distance between camera and aruco in CM
+                z = '{:.2f}'.format(tvec[1][0]) ###Zerror/distance between camera and aruco in CM
+
+                # x=tvec[0]
+                # y=tvec[1]
+                # z=tvec[2]
 
                 y_sum=0
                 x_sum=0
+                print('gversrsvdfgfdfgfd')
 
-                x_sum = corners[0][0][0][0] + corners[0][0][1][0] + corners[0][0][2][0] + corners[0][0][3][0]
-                y_sum = corners[0][0][0][1] + corners[0][0][1][1] + corners[0][0][2][1] + corners[0][0][3][1]
+                # print(corners[0][0][1])
+                print('gversr')
+                print(corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0])
+                print(corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1])
+
+
+                x_sum = corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]
+                y_sum = corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]
 
                 x_avg = x_sum / 4
                 y_avg = y_sum / 4
@@ -182,6 +196,22 @@ def image_callback(msg):
                 x_ang = (x_avg - horizontal_res*.5)*horizontal_fov/horizontal_res
                 y_ang = (y_avg - vertical_res*.5)*vertical_fov/vertical_res
 
+
+
+                marker_position = 'MARKER POSITION: x='+x+' y='+y+' z='+z
+
+                cv2.drawFrameAxes(cv_image,camera_matrix,camera_distortion,rvec,tvec,10)
+                print('lala')
+                cv2.putText(cv_image,marker_position,(10,50),0,.7,(255,0,0),thickness=2)
+                print(marker_position)
+                print('Found Count: '+str(found_count))
+                print('yaay')
+                print ('FOUND COUNT: '+str(found_count)+ 'NOTFOUND COUNT: '+str(notfound_count))
+
+
+                found_count = found_count + 1
+                
+                
                 if vehicle.mode !='LAND':
                     vehicle.mode = VehicleMode('LAND')
                     while vehicle.mode !='LAND':
@@ -190,35 +220,22 @@ def image_callback(msg):
                     send_land_message(x_ang,y_ang)
                 else:
                     send_land_message(x_ang, y_ang)
-
-
-                marker_position = 'MARKER POSITION: x='+x+' y='+y+' z='+z
-
-                aruco.drawAxis(cv_image,camera_matrix,camera_distortion,rvec,tvec,10)
-
-                cv2.putText(cv_image,marker_position,(10,50),0,.7,(255,0,0),thickness=2)
-                print(marker_position)
-                print('Found Count: '+str(found_count))
-                # print ('FOUND COUNT: '+str(found_count)+ 'NOTFOUND COUNT: '+str(notfound_count))
-
-
-                found_count = found_count + 1
             else:
                 print('ck 1')
                 pass
-                # notfound_count=notfound_count+1
+                notfound_count=notfound_count+1
         else:
             print('ck 2')
             pass
-            # notfound_count=notfound_count+1
+            notfound_count=notfound_count+1
     except Exception as e:
         print ('Target likely not found')
         print (e)
-        # notfound_count=notfound_count+1
+        notfound_count=notfound_count+1
     # new_msg = rnp.msgify(Image, cv_image,encoding='rgb8')
     # newimg_pub.publish(new_msg)
-    time_last = time.time()
-
+    # time_last = time.time()
+    
     cv2.imshow("Camera Feed", cv_image)
     #print('Checkpoint 6')
     k = cv2.waitKey(50)
@@ -302,6 +319,7 @@ def send_land_message(x,y):
         y,
         0,0,0
     )
+    print('ja')
     vehicle.send_mavlink(msg)
     vehicle.flush()
 
