@@ -13,11 +13,11 @@ from sensor_msgs.msg import Image
 ar_id=2
 marker_size=4
 calib_path="/home/bhajneet/catkin_ws/src/zebu/scripts/"
-# camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
-# camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
+camera_matrix = np.loadtxt(calib_path+'cameraMatrix_webcam_copy.txt', delimiter=',')
+camera_distortion = np.loadtxt(calib_path+'cameraDistortion_webcam_copy.txt', delimiter=',')
 
-camera_matrix = np.array([[530.8269276712998, 0.0, 320.5], [0.0, 530.8269276712998, 240.5], [0.0, 0.0, 1.0]])
-camera_distortion = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+# camera_matrix = np.array([[530.8269276712998, 0.0, 320.5], [0.0, 530.8269276712998, 240.5], [0.0, 0.0, 1.0]])
+# camera_distortion = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 
 
 R_flip = np.zeros((3,3), dtype=np.float32)
@@ -143,7 +143,7 @@ def image_callback(msg):
 
     # Display the image
     # spiral(3,3,0)
-    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
+    arucoDict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
     arucoParams = cv2.aruco.DetectorParameters()
     detectors = cv2.aruco.ArucoDetector(arucoDict,arucoParams)
     corners, ids, rejected = detectors.detectMarkers(cv_image)
@@ -159,10 +159,11 @@ def image_callback(msg):
         if ids is not None:
             print('ck3')
             print(corners)
-
+            # corners = np.squeeze(corners)
             if ids[0]==ar_id:
+                aruco.drawDetectedMarkers(cv_image,corners)
                 # np_data = rnp.numpify(message)
-                ret, rvec, tvec = cv2.solvePnP(marker_points,np.squeeze(corners),camera_matrix,camera_distortion)
+                ret, rvec, tvec = cv2.solvePnP(marker_points,corners,camera_matrix,camera_distortion)
                 print('ck5')
                 # (rvec, tvec) = (ret[0][0,0,:],ret[1][0,0,:])
                 x = '{:.2f}'.format(tvec[0]) ###Xerror/distance between camera and aruco in CM
@@ -193,7 +194,6 @@ def image_callback(msg):
 
                 marker_position = 'MARKER POSITION: x='+x+' y='+y+' z='+z
 
-                aruco.drawDetectedMarkers(cv_image,corners)
                 aruco.drawAxis(cv_image,camera_matrix,camera_distortion,rvec,tvec,10)
 
                 cv2.putText(cv_image,marker_position,(10,50),0,.7,(255,0,0),thickness=2)
